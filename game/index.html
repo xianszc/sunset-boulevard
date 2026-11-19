@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sunset Boulevard — top-down open-world crime game</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #1a2233;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .panel { position: fixed; color: #fff; background: rgba(12, 16, 26, 0.82); border: 1px solid rgba(255,255,255,0.16);
+    border-radius: 10px; padding: 10px 14px; backdrop-filter: blur(2px); z-index: 5; }
+  #hud-mission { top: 12px; left: 12px; max-width: 380px; border-left: 4px solid #ffd23a; }
+  #hud-mission h2 { margin: 0 0 2px; font-size: 15px; letter-spacing: 1px; color: #ffd23a; }
+  #hud-mission p { margin: 0; font-size: 13px; line-height: 1.45; color: #e8e8e8; }
+  #hud-right { top: 12px; right: 12px; text-align: right; min-width: 190px; }
+  #hud-stars { font-size: 22px; letter-spacing: 2px; color: #ffd23a; line-height: 1; }
+  #hud-money { font-size: 15px; font-weight: 700; margin-top: 4px; }
+  #hud-health-wrap { margin-top: 6px; height: 8px; background: rgba(255,255,255,0.18); border-radius: 4px; overflow: hidden; }
+  #hud-health { height: 100%; width: 100%; background: #46c46a; }
+  #hud-bottom { bottom: 12px; right: 12px; text-align: right; font-size: 13px; }
+  #hud-speed { font-size: 26px; font-weight: 800; line-height: 1; }
+  #hud-weapon { color: #ffd23a; font-weight: 700; margin-top: 2px; }
+  #hud-busted-wrap { margin-top: 6px; font-size: 11px; color: #ff6a5a; }
+  #hud-busted { height: 6px; background: #ff4a3a; border-radius: 3px; margin-top: 2px; display: none; }
+  #hud-message { position: fixed; left: 50%; bottom: 88px; transform: translateX(-50%); max-width: 640px;
+    text-align: center; color: #fff; background: rgba(12,16,26,0.85); border: 1px solid rgba(255,210,58,0.5);
+    border-radius: 8px; padding: 9px 16px; font-size: 14px; z-index: 5; transition: opacity 0.3s; }
+  #hud-keys { position: fixed; left: 14px; bottom: 178px; color: rgba(255,255,255,0.75); font-size: 11px;
+    line-height: 1.6; z-index: 4; text-shadow: 0 1px 2px #000; }
+  .screen { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(180deg, rgba(42,117,211,0.88) 0%, rgba(255,154,92,0.88) 55%, rgba(255,167,86,0.92) 100%);
+    z-index: 10; }
+  .card { max-width: 620px; margin: 16px; background: rgba(12, 16, 26, 0.88); color: #fff; border-radius: 16px;
+    padding: 28px 34px; border: 1px solid rgba(255,210,58,0.4); box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+  .card h1 { margin: 0 0 4px; font-size: 42px; letter-spacing: 2px; color: #ffd23a; }
+  .card h1 span { color: #70e000; }
+  .card h3 { margin: 0 0 14px; font-weight: 400; color: #ffb36a; font-size: 16px; }
+  .card p { font-size: 14px; line-height: 1.6; color: #e8e8e8; }
+  .card .controls { font-size: 13px; line-height: 1.9; color: #c8d0dc; background: rgba(255,255,255,0.06);
+    border-radius: 8px; padding: 10px 14px; margin: 14px 0; }
+  .card .controls b { color: #ffd23a; }
+  button { cursor: pointer; font-size: 16px; font-weight: 800; letter-spacing: 1px; color: #14161a;
+    background: #ffd23a; border: 0; border-radius: 10px; padding: 12px 26px; margin: 6px 8px 0 0; }
+  button:hover { background: #ffe06a; }
+  button.ghost { background: transparent; color: #fff; border: 2px solid rgba(255,255,255,0.5); }
+  #end-title { font-size: 34px; }
+  #victory-stats { font-size: 15px; }
+</style>
+</head>
+<body>
+<canvas id="game" aria-label="Sunset Boulevard: a top-down open-world crime game. Drive, steal cars, lose the cops, run missions."></canvas>
+<p id="status" role="status" aria-live="polite"></p>
+
+<div id="hud-mission" class="panel">
+  <h2 id="mission-title">1. FIRST LIGHT</h2>
+  <p id="mission-objective">Meet Mara at Market Row</p>
+</div>
+<div id="hud-right" class="panel">
+  <div id="hud-stars">☆☆☆☆☆</div>
+  <div id="hud-money">$0 · REP 0</div>
+  <div id="hud-health-wrap"><div id="hud-health"></div></div>
+</div>
+<div id="hud-bottom" class="panel">
+  <div id="hud-speed">ON FOOT</div>
+  <div id="hud-weapon">PISTOL · 24 ammo</div>
+  <div id="hud-busted-wrap" style="display:none">BUSTED?<div id="hud-busted"></div></div>
+</div>
+<div id="hud-message" style="opacity:0"></div>
+
+<div id="start-screen" class="screen">
+  <div class="card">
+    <h1>SUNSET <span>BOULEVARD</span></h1>
+    <h3>A top-down open-world crime game — golden hour in Sunset City.</h3>
+    <p>You are <b>Rico Vale</b>, getaway driver. Your fixer <b>Mara Quinn</b> has six jobs for you:
+    meet the crew, steal the lime Sunset GT, run the boulevard, lose the heat, pull a bank heist,
+    and make the golden getaway by boat. The higher your wanted level, the longer the shadows
+    grow and the hotter the city gets — <b>Golden Hour Heat</b>.</p>
+    <div class="controls">
+      <b>WASD / arrows</b> move &amp; drive &nbsp;·&nbsp; <b>F</b> enter / exit car &nbsp;·&nbsp; <b>Click</b> shoot<br>
+      <b>Space</b> punch &nbsp;·&nbsp; <b>1 / 2</b> fists / pistol &nbsp;·&nbsp; <b>Shift</b> run &nbsp;·&nbsp; <b>P</b> pause &nbsp;·&nbsp; <b>M</b> mute &nbsp;·&nbsp; <b>Wheel</b> zoom
+    </div>
+    <button id="start-btn">START ENGINE</button>
+    <button id="continue-btn" class="ghost" style="display:none">CONTINUE</button>
+    <p style="font-size:12px;color:#9aa4b4">Progress saves automatically in your browser. Original game — no GTA assets, no real places.</p>
+  </div>
+</div>
+
+<div id="end-screen" class="screen" style="display:none">
+  <div class="card">
+    <h1 id="end-title">GOLDEN GETAWAY — YOU WIN</h1>
+    <p id="victory-stats"></p>
+    <button id="victory-btn">FREE ROAM</button>
+    <button id="retry-btn">RETRY (BUSTED −$500)</button>
+    <button id="restart-btn" class="ghost">RESTART MISSION</button>
+  </div>
+</div>
+
+<div id="pause-screen" class="screen" style="display:none">
+  <div class="card">
+    <h1 id="pause-title">PAUSED</h1>
+    <p>Sunset City waits for you, Rico.</p>
+    <button id="resume-btn">RESUME</button>
+  </div>
+</div>
+
+<script type="module">
+  import { Game } from './src/main.js';
+  const game = new Game(document.getElementById('game'));
+  window.__sunsetGame = game;
+</script>
+</body>
+</html>
